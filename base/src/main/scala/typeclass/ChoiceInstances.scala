@@ -9,10 +9,10 @@ trait ChoiceInstances { instances =>
     override val profunctor = Profunctor.function
 
     override def left[A, B, C](ab: A => B): A \/ C => B \/ C  =
-      _.fold[B \/ C](a => Disjunction.left(ab(a)))(Disjunction.right(_))
+      _.fold[B \/ C](a => Disjunction.left(ab(a)))(Disjunction.right)
 
     override def right[A, B, C](ab: A => B): C \/ A => C \/ B =
-      _.fold[C \/ B](Disjunction.left(_))((a => Disjunction.right(ab(a))))
+      _.fold[C \/ B](Disjunction.left)(a => Disjunction.right(ab(a)))
   }
 }
 

@@ -20,15 +20,23 @@ trait ConstInstances {
     override def toList[A](fa: Const[R, A]): List[A] = Nil
   }
 
-  implicit def apply[R](implicit R: Semigroup[R]): Apply[Const[R, ?]] = new Apply[Const[R, ?]] {
-    def functor: Functor[Const[R, ?]] = implicitly
-    def ap[A, B](fa: Const[R, A])(f: Const[R, A => B]): Const[R, B] =
-      Const(R.append(fa.getConst, f.getConst))
+  private trait ConstApplyClass[R] extends ApplyClass[Const[R, ?]]{
+    override def map[A, B](ma: Const[R, A])(f: (A) => B): Const[R, B] = ma.retag
+
+    override def ap[A, B](fa: Const[R, A])(f: Const[R, A => B]): Const[R, B] =
+      Const(semigroup.append(fa.getConst, f.getConst))
+
+    def semigroup: Semigroup[R]
   }
 
-  implicit def applicative[R](implicit R: Monoid[R]): Applicative[Const[R, ?]] = new Applicative[Const[R, ?]] {
-    def apply: Apply[Const[R, ?]] = implicitly
+  implicit def apply[R](implicit R: Semigroup[R]): Apply[Const[R, ?]] = new ConstApplyClass[R] {
+    override def semigroup: Semigroup[R] = R
+  }
+
+  implicit def applicative[R](implicit R: Monoid[R]): Applicative[Const[R, ?]] = new ApplicativeClass[Const[R, ?]] with ConstApplyClass[R] {
     def pure[A](a: A): Const[R, A] = Const(R.empty)
+
+    override def semigroup: Semigroup[R] = R.semigroup
   }
 
   implicit def semigroup[A, B](implicit A: Semigroup[A]): Semigroup[Const[A, B]] = new Semigroup[Const[A, B]] {
