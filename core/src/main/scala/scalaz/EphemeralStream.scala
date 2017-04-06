@@ -28,18 +28,17 @@ sealed abstract class EphemeralStream[A] {
   }
 
   def toList: List[A] = {
-    def lcons(xs: => List[A])(x: => A) = x :: xs
-    foldLeft(Nil: List[A])(lcons _).reverse
+    foldLeft(Nil: List[A])((xs, x) => x :: xs).reverse
   }
 
-  def foldRight[B](z: => B)(f: (=> A) => (=> B) => B): B =
-    if (isEmpty) z else f(head())(tail().foldRight(z)(f))
+  def foldRight[B](z: => B)(f: (=> A, => B) => B): B =
+    if (isEmpty) z else f(head(), tail().foldRight(z)(f))
 
-  def foldLeft[B](z: => B)(f: (=> B) => (=> A) => B): B = {
+  def foldLeft[B](z: B)(f: (B, => A) => B): B  = {
     @annotation.tailrec
     def loop(t: EphemeralStream[A], acc: B): B =
       if (t.isEmpty) acc
-      else loop(t.tail(), f(acc)(t.head()))
+      else loop(t.tail(), f(acc, t.head()))
     loop(this, z)
   }
 
@@ -56,17 +55,16 @@ sealed abstract class EphemeralStream[A] {
   }
 
   def ++(e: => EphemeralStream[A]): EphemeralStream[A] =
-    foldRight[EphemeralStream[A]](e)((cons[A](_, _)).curried)
+    foldRight[EphemeralStream[A]](e)(cons[A])
 
   def flatMap[B](f: A => EphemeralStream[B]): EphemeralStream[B] =
-    foldRight[EphemeralStream[B]](emptyEphemeralStream)(h => t => f(h) ++ t)
+    foldRight[EphemeralStream[B]](emptyEphemeralStream)((h, t) => f(h) ++ t)
 
   def map[B](f: A => B): EphemeralStream[B] =
     flatMap(x => EphemeralStream(f(x)))
 
   def length = {
-    def addOne(c: => Int)(a: => A) = 1 + c
-    foldLeft(0)(addOne _)
+    foldLeft(0)((c, _) => 1 + c)
   }
 
   def tails: EphemeralStream[EphemeralStream[A]] =
@@ -95,8 +93,7 @@ sealed abstract class EphemeralStream[A] {
   }
 
   def reverse: EphemeralStream[A] = {
-    def lcons(xs: => List[A])(x: => A) = x :: xs
-    apply(foldLeft(Nil: List[A])(lcons _) : _*)
+    apply(foldLeft(Nil: List[A])((xs, x) => x :: xs) : _*)
   }
 
   def zip[B](b: => EphemeralStream[B]): EphemeralStream[(A, B)] =
@@ -106,7 +103,7 @@ sealed abstract class EphemeralStream[A] {
       cons((head(), b.head()), tail() zip b.tail())
 
   def unzip[X, Y](implicit ev: A <:< (X, Y)): (EphemeralStream[X], EphemeralStream[Y]) =
-    foldRight((emptyEphemeralStream[X], emptyEphemeralStream[Y]))(q => r =>
+    foldRight((emptyEphemeralStream[X], emptyEphemeralStream[Y]))((q, r) =>
       (cons(q._1, r._1), cons(q._2, r._2)))
 
   def alignWith[B, C](f: A \&/ B => C)(b: EphemeralStream[B]): EphemeralStream[C] =
@@ -176,7 +173,7 @@ sealed abstract class EphemeralStreamInstances {
     override def foldMap1Opt[A, B](fa: EphemeralStream[A])(f: A => B)(implicit B: Semigroup[B]) =
       foldMapRight1Opt(fa)(f)((l, r) => B.append(f(l), r))
     override def foldLeft[A, B](fa: EphemeralStream[A], z: B)(f: (B, A) => B) =
-      fa.foldLeft(z)(b => a => f(b, a))
+      fa.foldLeft(z)((b, a) => f(b, a))
 
     override def foldMapRight1Opt[A, B](fa: EphemeralStream[A])(z: A => B)(f: (A, => B) => B): Option[B] = {
       def rec(tortoise: EphemeralStream[A], hare: EphemeralStream[A]): B =
@@ -204,7 +201,7 @@ sealed abstract class EphemeralStreamInstances {
       val seed: G[EphemeralStream[B]] = G.point(EphemeralStream[B]())
 
       fa.foldRight(seed) {
-        x => ys => G.apply2(f(x), ys)((b, bs) => EphemeralStream.cons(b, bs))
+        (x , ys) => G.apply2(f(x), ys)((b, bs) => EphemeralStream.cons(b, bs))
       }
     }
     override def index[A](fa: EphemeralStream[A], i: Int): Option[A] = {
