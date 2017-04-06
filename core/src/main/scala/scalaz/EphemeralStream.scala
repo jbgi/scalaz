@@ -93,7 +93,7 @@ sealed abstract class EphemeralStream[A] {
   }
 
   def reverse: EphemeralStream[A] = {
-    apply(foldLeft(Nil: List[A])((xs, x) => x :: xs) : _*)
+    foldLeft(emptyEphemeralStream[A])((xs, x) => cons(x, xs))
   }
 
   def zip[B](b: => EphemeralStream[B]): EphemeralStream[(A, B)] =
