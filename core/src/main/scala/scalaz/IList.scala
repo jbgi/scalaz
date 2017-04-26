@@ -14,7 +14,7 @@ import scalaz.std.option
  * here, either on the `IList` interface itself or via typeclass instances (which are the same as
  * those defined for stdlib `List`). All methods are total and stack-safe.
  */
-trait IList[A] extends Product with Serializable {
+abstract class IList[A] extends Product with Serializable {
 
   // Operations, in alphabetic order
 
@@ -494,23 +494,23 @@ trait IList[A] extends Product with Serializable {
 
 }
 
-sealed abstract class StrictIList[A] {
+sealed trait StrictIList[A] {
   def list: IList[A]
 }
-sealed abstract case class INil[A]() extends StrictIList[A] { self: IList[A] =>
+sealed abstract case class INil[A]() extends IList[A] with StrictIList[A] {
   override def value: StrictIList[A] = this
   override def list: IList[A] = this
 }
 object INil {
-  private[this] val nil: IList[Nothing] = new INil with IList[Nothing] {}
+  private[this] val nil: IList[Nothing] = new INil {}
   def apply[A](): IList[A] = nil.asInstanceOf[IList[A]]
 }
-sealed abstract case class ICons[A](head: A, tail: IList[A]) extends StrictIList[A] { self: IList[A] =>
+sealed abstract case class ICons[A](head: A, tail: IList[A]) extends IList[A] with StrictIList[A] {
   override def value: StrictIList[A] = this
   override def list: IList[A] = this
 }
 object ICons {
-  def apply[A](head: A, tail: IList[A]): IList[A]  = new ICons[A](head, tail) with IList[A] {}
+  def apply[A](head: A, tail: IList[A]): IList[A]  = new ICons[A](head, tail) {}
 }
 private final class ByNeed[A](private[this] var list: () => IList[A]) extends IList[A] {
   override lazy val value = {
