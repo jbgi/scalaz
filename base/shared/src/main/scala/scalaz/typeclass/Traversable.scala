@@ -5,8 +5,8 @@ trait Traversable[T[_]] {
   def functor: Functor[T]
   def foldable: Foldable[T]
 
-  def traverse[F[_], A, B](ta: T[A])(f: A => F[B])(implicit F: Applicative[F]): F[T[B]]
-  def sequence[F[_], A](ta: T[F[A]])(implicit F: Applicative[F]): F[T[A]]
+  def traverse[F[_]: Applicative : ForAllThunkable, A, B](ta: T[A])(f: A => F[B]): F[T[B]]
+  def sequence[F[_]: Applicative: ForAllThunkable, A](ta: T[F[A]]): F[T[A]]
 }
 
 object Traversable extends TraversableInstances with TraversableSyntax {

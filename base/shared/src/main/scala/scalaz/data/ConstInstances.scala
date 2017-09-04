@@ -37,7 +37,7 @@ trait ConstInstances {
   }
 
   implicit def semigroup[A, B](implicit A: Semigroup[A]): Semigroup[Const[A, B]] = new Semigroup[Const[A, B]] {
-    def append(a1: Const[A, B], a2: => Const[A, B]): Const[A, B] =
+    def append(a1: Const[A, B], a2: Const[A, B]): Const[A, B] =
       Const(A.append(a1.getConst, a2.getConst))
   }
 

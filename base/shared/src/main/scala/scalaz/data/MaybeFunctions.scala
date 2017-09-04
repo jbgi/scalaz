@@ -1,18 +1,16 @@
 package scalaz
 package data
 
-import typeclass.Liskov._
-
-import Maybe.{Empty, Just}
+import scalaz.data.Maybe._
 
 trait MaybeFunctions {
-  def empty[A]: Maybe[A] = liftCvf[Nothing, A, Maybe](isa[Nothing, A]).apply(Empty)
-  def just[A](a: A): Maybe[A] = Just(a)
+  def empty[A]: Maybe[A] = Constructors.empty
+  def just[A](a: A): Maybe[A] = Constructors.just(a)
 
-  def maybe[A, B](n: B)(f: A => B): Maybe[A] => B = _ match {
-    case Empty    => n
+  def maybe[A, B](n: B)(f: A => B): Maybe[A] => B = _() match {
     case Just(x)  => f(x)
+    case _    => n
   }
 
-  def fromOption[A](oa: Option[A]): Maybe[A] = oa.fold[Maybe[A]](empty[A])(Just(_))
+  def fromOption[A](oa: Option[A]): Maybe[A] = oa.fold(empty[A])(just)
 }

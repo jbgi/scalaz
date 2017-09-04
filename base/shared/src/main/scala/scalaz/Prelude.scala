@@ -12,7 +12,8 @@ trait Prelude  extends data.DisjunctionFunctions
                   with typeclass.FunctorFunctions
                   with typeclass.InvariantFunctorFunctions
                   with typeclass.LiskovFunctions
-                  with typeclass.TraversableFunctions {
+                  with typeclass.TraversableFunctions
+                  with typeclass.ThunkableFunctions {
 
   // Base Class
   // ==========
@@ -28,6 +29,8 @@ trait Prelude  extends data.DisjunctionFunctions
   type InvariantFunctor[F[_]] = typeclass.InvariantFunctor[F]
   type Comonad[F[_]] = typeclass.Comonad[F]
   type Cobind[F[_]] = typeclass.Cobind[F]
+  type Thunkable[A] = typeclass.Thunkable[A]
+  type ForAllThunkable[F[_]] = typeclass.ForAllThunkable[F]
 
   def Applicative[F[_]](implicit F: Applicative[F]): Applicative[F] = F
   def Apply[F[_]](implicit F: Apply[F]): Apply[F] = F
