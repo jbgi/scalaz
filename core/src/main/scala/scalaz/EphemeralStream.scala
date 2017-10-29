@@ -45,9 +45,6 @@ sealed abstract class EphemeralStream[A] {
     loop(this, z)
   }
 
-  def foldLeft[B](z: => B)(f: (=> B, => A) => B): B = foldl(z)(b => a => f(b, a))
-  def foldRight[B](z: => B)(f: (=> A, => B) => B): B = foldr(z)(a => b => f(a, b))
-
   def filter(p: A => Boolean): EphemeralStream[A] = {
     val rest = this dropWhile (!p(_))
     if (rest.isEmpty) emptyEphemeralStream
