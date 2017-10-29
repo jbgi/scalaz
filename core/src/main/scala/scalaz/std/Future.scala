@@ -19,7 +19,7 @@ private class FutureInstance(implicit ec: ExecutionContext) extends Nondetermini
   def bind[A, B](fa: Future[A])(f: A => Future[B]): Future[B] = fa flatMap f
   override def map[A, B](fa: Future[A])(f: A => B): Future[B] = fa map f
   def cobind[A, B](fa: Future[A])(f: Future[A] => B): Future[B] = Future(f(fa))
-  override def cojoin[A](a: Future[A]): Future[Future[A]] = Future(a)
+  override def cojoin[A](a: Future[A]): Future[Future[A]] = Future.successful(a)
 
   def chooseAny[A](head: Future[A], tail: Seq[Future[A]]): Future[(A, Seq[Future[A]])] = {
     val fs = (head +: tail).iterator.zipWithIndex.toIndexedSeq
@@ -28,8 +28,8 @@ private class FutureInstance(implicit ec: ExecutionContext) extends Nondetermini
     def attemptComplete(t: Try[(A, Int)]): Unit = {
       val remaining = counter.decrementAndGet
       t match {
-        case TSuccess(_) => result tryComplete t
-        case _ if remaining == 0 => result tryComplete t
+        case TSuccess(_) => val _ = result tryComplete t
+        case _ if remaining == 0 => val _ = result tryComplete t
         case _ =>
       }
     }
@@ -49,8 +49,8 @@ private class FutureInstance(implicit ec: ExecutionContext) extends Nondetermini
   override def both[A,B](a: Future[A], b: Future[B]): Future[(A,B)] =
     a zip b
 
-  override def gather[A](fs: Seq[Future[A]]): Future[List[A]] =
-    Future.sequence(fs.toList)
+  override def gather[A](fs: Seq[Future[A]]): Future[IList[A]] =
+    sequence(IList(fs: _*))
 
   // override for actual parallel execution
   override def ap[A, B](fa: => Future[A])(fab: => Future[A => B]) =

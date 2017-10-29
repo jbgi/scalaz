@@ -63,13 +63,13 @@ final case class Cord(self: FingerTree[Int, String]) {
    * Prepends a `String` to the beginning of this `Cord`.
    * Time complexity: O(1)
    */
-  def +:(x: => String): Cord = cord(x +: self)
+  def +:(x: String): Cord = cord(x +: self)
 
   /**
    * Prepends a `Char` to the beginning of this `Cord`.
    * Time complexity: O(1)
    */
-  def -:(x: => Char): Cord = cord(x.toString +: self)
+  def -:(x: Char): Cord = cord(x.toString +: self)
 
   /**
    * Appends a `Char` to the end of this `Cord`.
@@ -114,7 +114,7 @@ final case class Cord(self: FingerTree[Int, String]) {
     import syntax.foldable._
     import Free._
     val sb = new StringBuilder(self.measure)
-    val t = self.traverse_[Trampoline](x => Trampoline.delay(sb ++= x))
+    val t = self.traverse_[Trampoline](x => Trampoline.delay {val _ = sb ++= x})
     t.run
     sb.toString
   }

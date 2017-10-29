@@ -120,6 +120,12 @@ sealed abstract class IList[A] extends Product with Serializable {
   def filter(f: A => Boolean): IList[A] =
     foldRight(IList.empty[A])((a, as) => if (f(a)) a :: as else as)
 
+  def filterM[F[_]](f: A => F[Boolean])(implicit F: Applicative[F]): F[IList[A]] =
+    this match {
+      case INil() => F.point(INil())
+      case ICons(h, t) => F.ap(t.filterM(f))(F.map(f(h))(b => t => if (b) h :: t else t))
+    }
+
   def filterNot(f: A => Boolean): IList[A] =
     filter(a => !f(a))
 
@@ -405,7 +411,7 @@ sealed abstract class IList[A] extends Product with Serializable {
     uncons(EphemeralStream(), (h, t) => EphemeralStream.cons(h, t.toEphemeralStream))
 
   def toList: List[A] =
-    foldRight(Nil : List[A])(_ :: _)
+    Foldable[IList].toList(this)
 
   def toNel: Option[NonEmptyList[A]] =
     uncons(None, (h, t) => Some(NonEmptyList.nel(h, t)))
@@ -420,7 +426,7 @@ sealed abstract class IList[A] extends Product with Serializable {
     IList.show(Show.showA).shows(this) // lame, but helpful for debugging
 
   def toVector: Vector[A] =
-    foldRight(Vector[A]())(_ +: _)
+    Foldable[IList].toVector(this)
 
   def toZipper: Option[Zipper[A]] =
     sToZipper(toStream)
@@ -493,7 +499,7 @@ object IList extends IListInstances {
     Foldable[F].foldRight(as, empty[A])(ICons(_, _))
 
   def fromOption[A](a: Option[A]): IList[A] =
-    cata(a)(single(_), IList.empty[A])
+    cata(a)(single, IList.empty[A])
 
   def fill[A](n: Int)(a: A): IList[A] = {
     @tailrec def go(i: Int, list: IList[A]): IList[A] = {
@@ -588,6 +594,8 @@ sealed abstract class IListInstances extends IListInstance0 {
       }
 
       override def toIList[A](fa: IList[A]) = fa
+
+      override def toStream[A](fa: IList[A]) = fa.toStream
 
       override def foldLeft[A, B](fa: IList[A], z: B)(f: (B, A) => B) =
         fa.foldLeft(z)(f)

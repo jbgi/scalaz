@@ -1,7 +1,7 @@
 package scalaz
 
 import scalaz.scalacheck.ScalazProperties._
-import scalaz.scalacheck.ScalazArbitrary
+import scalaz.scalacheck.ScalazArbitrary._
 import std.AllInstances._
 
 object StateTTest extends SpecLite {
@@ -11,8 +11,6 @@ object StateTTest extends SpecLite {
   type IStateTList[S, A] = IndexedStateT[List, S, Int, A]
 
   implicit def stateTListEqual = Equal[List[(Int, Int)]].contramap((_: StateTListInt[Int]).runZero[Int])
-  implicit def stateTListArb = ScalazArbitrary.stateTArb[List, Int, Int]
-  implicit def stateTListArb2 = ScalazArbitrary.stateTArb[List, Int, Int => Int]
 
   checkAll(equal.laws[StateTListInt[Int]])
   checkAll(bindRec.laws[StateTListInt])
@@ -79,17 +77,5 @@ object StateTTest extends SpecLite {
     val result = (0 to 4000).toList.map(i => StateT[Trampoline, Int, Int]((ii:Int) => Trampoline.done((i,i))))
       .foldLeft(StateT((s:Int) => Trampoline.done((s,s))))( (a,b) => a.flatMap(_ => b))
     4000 must_=== result(0).run._1
-  }
-
-  "MonadState must be derived for any stack of Monads" in {
-    type StateStack[A] = State[Int, A]
-    type ListStack[A] = ListT[StateStack, A]
-
-    // `promotedMonadState` implicit instance had to be reverted (see #1308).
-    // Call `promotedMonadState` explicitly for now.
-    //val ms = MonadState[ListStack, Int]
-    val ms = MonadState.promotedMonadState[ListStack, StateStack, Int]
-
-    ms.get.run.eval(1) must_=== List(1)
   }
 }

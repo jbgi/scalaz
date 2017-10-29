@@ -1,6 +1,7 @@
 package scalaz
 
 import java.lang.ref.WeakReference
+import java.util.concurrent.atomic.AtomicReference
 
 /** Like [[scala.collection.immutable.Stream]], but doesn't save
   * computed values.  As such, it can be used to represent similar
@@ -27,9 +28,11 @@ sealed abstract class EphemeralStream[A] {
     else Some(tail())
   }
 
-  def toList: List[A] = {
+  def toList: List[A] =
     foldLeft(Nil: List[A])((xs, x) => x :: xs).reverse
-  }
+
+  def toIList: IList[A] =
+    foldLeft(INil(): IList[A])((xs, x) => x :: xs).reverse
 
   def foldRight[B](z: => B)(f: (=> A, => B) => B): B =
     if (isEmpty) z else f(head(), tail().foldRight(z)(f))
@@ -41,6 +44,9 @@ sealed abstract class EphemeralStream[A] {
       else loop(t.tail(), f(acc, t.head()))
     loop(this, z)
   }
+
+  def foldLeft[B](z: => B)(f: (=> B, => A) => B): B = foldl(z)(b => a => f(b, a))
+  def foldRight[B](z: => B)(f: (=> A, => B) => B): B = foldr(z)(a => b => f(a, b))
 
   def filter(p: A => Boolean): EphemeralStream[A] = {
     val rest = this dropWhile (!p(_))
@@ -63,9 +69,8 @@ sealed abstract class EphemeralStream[A] {
   def map[B](f: A => B): EphemeralStream[B] =
     flatMap(x => EphemeralStream(f(x)))
 
-  def length = {
+  def length =
     foldLeft(0)((c, _) => 1 + c)
-  }
 
   def tails: EphemeralStream[EphemeralStream[A]] =
     if (isEmpty) EphemeralStream(emptyEphemeralStream)
@@ -92,9 +97,8 @@ sealed abstract class EphemeralStream[A] {
     }
   }
 
-  def reverse: EphemeralStream[A] = {
+  def reverse: EphemeralStream[A] =
     foldLeft(emptyEphemeralStream[A])((xs, x) => cons(x, xs))
-  }
 
   def zip[B](b: => EphemeralStream[B]): EphemeralStream[(A, B)] =
     if(isEmpty || b.isEmpty)
@@ -201,7 +205,7 @@ sealed abstract class EphemeralStreamInstances {
       val seed: G[EphemeralStream[B]] = G.point(EphemeralStream[B]())
 
       fa.foldRight(seed) {
-        (x , ys) => G.apply2(f(x), ys)((b, bs) => EphemeralStream.cons(b, bs))
+        (x, ys) => G.apply2(f(x), ys)((b, bs) => EphemeralStream.cons(b, bs))
       }
     }
     override def index[A](fa: EphemeralStream[A], i: Int): Option[A] = {
@@ -294,17 +298,25 @@ object EphemeralStream extends EphemeralStreamInstances {
   }
 
   def weakMemo[V](f: => V): () => V = {
-    val latch = new Object
-    // TODO I don't think this annotation does anything, as `v` isn't a class member.
-    @volatile var v: Option[WeakReference[V]] = None
+    val ref: AtomicReference[WeakReference[V]] = new AtomicReference()
     () => {
-      val a = v.map(x => x.get)
-      if (a.isDefined && a.get != null) a.get
-      else latch.synchronized {
-        val x = f
-        v = Some(new WeakReference(x))
-        x
+      @inline
+      def genNew(x: V, old: WeakReference[V]): V = {
+        if (ref.compareAndSet(old, new WeakReference(x)))
+          x
+        else {
+          val crt = ref.get.get
+          if (crt != null) crt
+          else x
+        }
       }
+      val v = ref.get()
+      if (v != null) {
+        val crt = v.get()
+        if (crt == null) {
+          genNew(f, v)
+        } else crt
+      } else genNew(f, v)
     }
   }
 

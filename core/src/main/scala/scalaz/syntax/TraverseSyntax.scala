@@ -7,7 +7,7 @@ final class TraverseOps[F[_],A] private[syntax](val self: F[A])(implicit val F: 
 
   import Leibniz.===
 
-  final def tmap[B](f: A => B) =
+  final def tmap[B](f: A => B): F[B] =
     F.map(self)(f)
 
   final def traverse[G[_], B](f: A => G[B])(implicit G: Applicative[G]): G[F[B]] =
@@ -68,20 +68,22 @@ final class TraverseOps[F[_],A] private[syntax](val self: F[A])(implicit val F: 
   ////
 }
 
-sealed trait ToTraverseOps0 {
-  implicit def ToTraverseOpsUnapply[FA](v: FA)(implicit F0: Unapply[Traverse, FA]) =
+sealed trait ToTraverseOpsU[TC[F[_]] <: Traverse[F]] {
+  implicit def ToTraverseOpsUnapply[FA](v: FA)(implicit F0: Unapply[TC, FA]) =
     new TraverseOps[F0.M,F0.A](F0(v))(F0.TC)
 
 }
 
-trait ToTraverseOps extends ToTraverseOps0 with ToFunctorOps with ToFoldableOps {
-  implicit def ToTraverseOps[F[_],A](v: F[A])(implicit F0: Traverse[F]) =
+trait ToTraverseOps0[TC[F[_]] <: Traverse[F]] extends ToTraverseOpsU[TC] {
+  implicit def ToTraverseOps[F[_],A](v: F[A])(implicit F0: TC[F]) =
     new TraverseOps[F,A](v)
 
   ////
 
   ////
 }
+
+trait ToTraverseOps[TC[F[_]] <: Traverse[F]] extends ToTraverseOps0[TC] with ToFunctorOps[TC] with ToFoldableOps[TC]
 
 trait TraverseSyntax[F[_]] extends FunctorSyntax[F] with FoldableSyntax[F] {
   implicit def ToTraverseOps[A](v: F[A]): TraverseOps[F, A] = new TraverseOps[F,A](v)(TraverseSyntax.this.F)

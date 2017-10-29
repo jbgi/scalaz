@@ -12,11 +12,11 @@ sealed abstract class PhasedLatch {
 
   /** Await the current phase. */
   @throws(classOf[InterruptedException])
-  final def await() = currentPhase flatMap awaitPhase
+  final def await(): IO[Unit] = currentPhase flatMap awaitPhase
 
   /** Await the current phase for the specified period. */
   @throws(classOf[InterruptedException])
-  final def awaitFor(time: Long, unit: TimeUnit) = currentPhase flatMap { awaitPhaseFor(_, time, unit) }
+  final def awaitFor(time: Long, unit: TimeUnit): IO[Boolean] = currentPhase flatMap { awaitPhaseFor(_, time, unit) }
 
   /** Await for the specified phase.*/
   @throws(classOf[InterruptedException])
@@ -64,7 +64,9 @@ trait PhasedLatches {
     val sync = new QueuedSynchronizer
 
     /** Release the current phase. */
-    def release = IO { sync releaseShared 1 }
+    def release = IO {
+      val _ = sync releaseShared 1
+    }
 
     /** Await for the specified phase.*/
     @throws(classOf[InterruptedException])

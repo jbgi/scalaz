@@ -1,6 +1,7 @@
 package scalaz
 
 import std.AllInstances._
+import syntax.apply._
 import syntax.foldable._
 import syntax.equal._
 import org.scalacheck.Prop.forAll
@@ -58,6 +59,27 @@ object FoldableTest extends SpecLite {
       else
         (xs minimumBy f) must_== Some((xs zip (xs map f)).minBy(_._2)._1)
   }
+  "extrema" ! forAll {
+    (xs: List[Int]) =>
+      (xs.extrema) must_== xs.minimum.tuple(xs.maximum)
+  }
+  "extremaOf" ! forAll {
+    (xs: List[Int]) =>
+      val f: Int => Double = 1D + _
+      (xs extremaOf f) must_== (xs minimumOf f).tuple(xs maximumOf f)
+  }
+  "extremaBy" ! forAll {
+    (xs: List[Int], f: Int => Int) =>
+      (xs extremaBy f) must_== (xs minimumBy f).tuple(xs maximumBy f)
+  }
+  "extremaBy consistent with minimumBy/maximumBy" ! {
+    val xs = (1 to 6).toList
+    val f: Int => Int = _ % 3
+    (xs extremaBy f) must_== (xs minimumBy f).tuple(xs maximumBy f)
+
+    val g: Int => Int = _ => 0
+    (xs extremaBy g) must_== (xs minimumBy g).tuple(xs maximumBy g)
+  }
 
   "distinct" ! forAll {
     (xs: List[Int]) =>
@@ -70,6 +92,13 @@ object FoldableTest extends SpecLite {
     (xs: List[Int]) =>
       xs.distinctE.toList must_== xs.distinct
       if (xs.length > 0) xs.distinctE(Equal.equal((_,_) => true)).length must_== 1
+  }
+
+  "distinctBy" ! {
+    case class Foo(a: Int, b: String)
+    val xs = IList(Foo(1, "x"), Foo(2, "x"), Foo(1, "y"))
+    xs.distinctBy(_.a) must_== IList(Foo(1, "x"), Foo(2, "x"))
+    xs.distinctBy(_.b) must_== IList(Foo(1, "x"), Foo(1, "y"))
   }
 
   "sumr1Opt" ! forAll {
@@ -92,7 +121,7 @@ object FoldableTest extends SpecLite {
     val gt2: (Int, => Int) => Int = (i, j) => i - j
     val strlen = (_ : String).length
 
-    import syntax.foldable1._
+    import syntax.foldable10._
     import syntax.std.list._
 
     "foldLeft1Opt" ! forAll {

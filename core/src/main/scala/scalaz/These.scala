@@ -64,7 +64,7 @@ sealed abstract class \&/[+A, +B] extends Product with Serializable {
     this match {
       case This(_) => None
       case That(_) => None
-      case Both(a, b) => Some(a, b)
+      case Both(a, b) => Some((a, b))
     }
 
   def pad: (Option[A], Option[B]) =
@@ -147,7 +147,7 @@ sealed abstract class \&/[+A, +B] extends Product with Serializable {
     }
 
   def foreach(g: B => Unit): Unit =
-    bimap(_ => (), g)
+    fold(_ => (), g, (_, b) => g(b))
 
   def flatMap[AA >: A, D](g: B => (AA \&/ D))(implicit M: Semigroup[AA]): (AA \&/ D) =
     this match {
@@ -202,6 +202,8 @@ sealed abstract class \&/[+A, +B] extends Product with Serializable {
 
   def toList: List[B] =
     b.toList
+
+  def toIList[BB >: B]: IList[BB] = fold(_ => INil(), IList(_), (_, b) => IList(b))
 
   def getOrElse[BB >: B](bb: => BB): BB =
     b getOrElse bb
@@ -273,6 +275,9 @@ object \&/ extends TheseInstances {
   def concatThisList[A, B](x: List[A \&/ B]): List[A] =
     concatThis[List, A, B](x)
 
+  def concatThisIList[A, B](x: IList[A \&/ B]): IList[A] =
+    concatThis[IList, A, B](x)
+
   def concatThisStream[A, B](x: EphemeralStream[A \&/ B]): EphemeralStream[A] =
     concatThis[EphemeralStream, A, B](x)
 
@@ -289,6 +294,9 @@ object \&/ extends TheseInstances {
   def concatThatList[A, B](x: List[A \&/ B]): List[B] =
     concatThat[List, A, B](x)
 
+  def concatThatIList[A, B](x: IList[A \&/ B]): IList[B] =
+    concatThat[IList, A, B](x)
+
   def concatThatStream[A, B](x: EphemeralStream[A \&/ B]): EphemeralStream[B] =
     concatThat[EphemeralStream, A, B](x)
 
@@ -304,6 +312,9 @@ object \&/ extends TheseInstances {
 
   def unalignList[A, B](x: List[A \&/ B]): (List[A], List[B]) =
     unalign[List, A, B](x)
+
+  def unalignIList[A, B](x: IList[A \&/ B]): (IList[A], IList[B]) =
+    unalign[IList, A, B](x)
 
   def unalignStream[A, B](x: EphemeralStream[A \&/ B]): (EphemeralStream[A], EphemeralStream[B]) =
     unalign[EphemeralStream, A, B](x)
@@ -343,6 +354,12 @@ object \&/ extends TheseInstances {
 sealed abstract class TheseInstances extends TheseInstances0 {
   type These[A, B] =
   A \&/ B
+
+  implicit def TheseBand[A: Band, B: Band]: Band[A \&/ B] =
+    new Band[A \&/ B] {
+      def append(f1: A \&/ B, f2: => A \&/ B) =
+        f1 append f2
+    }
 }
 
 sealed abstract class TheseInstances0 extends TheseInstances1 {
@@ -438,4 +455,3 @@ sealed abstract class TheseInstances1 {
   implicit def TheseShow[A, B](implicit SA: Show[A], SB: Show[B]): Show[A \&/ B] =
     Show.show(_.show)
 }
-

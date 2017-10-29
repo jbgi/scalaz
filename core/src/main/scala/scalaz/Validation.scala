@@ -34,7 +34,7 @@ import scala.reflect.ClassTag
 sealed abstract class Validation[+E, +A] extends Product with Serializable {
 
   final class SwitchingValidation[X](s: => X){
-    def <<?:(fail: => X): X =
+    def <<?:(fail: X): X =
       Validation.this match {
         case Failure(_) => fail
         case Success(_) => s
@@ -42,8 +42,18 @@ sealed abstract class Validation[+E, +A] extends Product with Serializable {
   }
 
   /** If this validation is success, return the given X value, otherwise, return the X value given to the return value. */
+  @deprecated("Due to SI-1980, <<?: will always evaluate its left argument; use foldConst instead",
+              since = "7.3.0")
   def :?>>[X](success: => X): SwitchingValidation[X] =
     new SwitchingValidation[X](success)
+
+  /** If this validation is success, return `success`, otherwise, return
+    * `fail`.
+    */
+  def foldConst[X](fail: => X, success: => X): X = this match {
+    case Failure(_) => fail
+    case Success(_) => success
+  }
 
   /** Return `true` if this validation is success. */
   def isSuccess: Boolean = this match {
@@ -121,7 +131,7 @@ sealed abstract class Validation[+E, +A] extends Product with Serializable {
   }
 
   /** Run the side-effect on the success of this validation. */
-  def foreach[U](f: A => U): Unit = this match {
+  def foreach(f: A => Unit): Unit = this match {
     case Success(a) => f(a)
     case Failure(_) =>
   }
@@ -159,11 +169,18 @@ sealed abstract class Validation[+E, +A] extends Product with Serializable {
     case Failure(_) => true
   }
 
-  /** Return an empty list or list with one element on the success of this validation. */
+  /** Return an empty list or a list with one element on the success of this validation. */
   def toList: List[A] =
     this match {
       case Failure(_) => Nil
       case Success(a) => a :: Nil
+    }
+
+  /** Return an empty ilist or an ilist with one element on the success of this validation. */
+  def toIList[AA >: A]: IList[AA] =
+    this match {
+      case Failure(_) => INil()
+      case Success(a) => IList(a)
     }
 
   /** Return an empty stream or stream with one element on the success of this validation. */
@@ -393,7 +410,7 @@ object Validation extends ValidationInstances {
   def liftNel[E, A](a: A)(f : A => Boolean, fail: E) : ValidationNel[E, A] =
     lift(a)(f, fail).toValidationNel
 
-  def fromTryCatchThrowable[T, E <: Throwable](a: => T)(implicit nn: NotNothing[E], ex: ClassTag[E]): Validation[E, T] = try {
+  def fromTryCatchThrowable[T, E <: Throwable: NotNothing](a: => T)(implicit ex: ClassTag[E]): Validation[E, T] = try {
     Success(a)
   } catch {
     case e if ex.runtimeClass.isInstance(e) => Failure(e.asInstanceOf[E])
@@ -455,7 +472,7 @@ sealed abstract class ValidationInstances0 extends ValidationInstances1 {
   }
 }
 
-final class ValidationFlatMap[E, A] private[scalaz](val self: Validation[E, A]) extends AnyVal {
+final class ValidationFlatMap[E, A] private[scalaz](private val self: Validation[E, A]) extends AnyVal {
   /** Bind through the success of this validation. */
   def flatMap[EE >: E, B](f: A => Validation[EE, B]): Validation[EE, B] =
     self match {
@@ -535,4 +552,3 @@ sealed abstract class ValidationInstances3 {
     }
 
 }
-

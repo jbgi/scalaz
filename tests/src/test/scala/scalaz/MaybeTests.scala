@@ -24,6 +24,11 @@ object MaybeTest extends SpecLite {
   checkAll("Maybe @@ Min", monoid.laws[MinMaybe[Int]])
   checkAll("Maybe @@ Max", monoid.laws[MaxMaybe[Int]])
 
+  checkAll("Band[Maybe @@ First]", band.laws[FirstMaybe[Int]])
+  checkAll("Band[Maybe @@ Last]", band.laws[LastMaybe[Int]])
+  checkAll("Band[Maybe @@ Min]", band.laws[MinMaybe[Int]])
+  checkAll("Band[Maybe @@ Max]", band.laws[MaxMaybe[Int]])
+
   checkAll("Maybe @@ First", monad.laws[FirstMaybe])
   checkAll("Maybe @@ Last", monad.laws[LastMaybe])
   checkAll("Maybe @@ Min", monad.laws[MinMaybe])
@@ -37,6 +42,7 @@ object MaybeTest extends SpecLite {
   checkAll(cobind.laws[Maybe])
   checkAll(align.laws[Maybe])
   checkAll(equal.laws[Maybe[Int]])
+  checkAll(semilattice.laws[Maybe[ISet[Int]]])
 
   "Empty is less than anything else" ! forAll { x: Maybe[Int] => Order[Maybe[Int]].greaterThanOrEqual(x, Maybe.empty) }
 
@@ -93,6 +99,7 @@ object MaybeTest extends SpecLite {
     def equal[A: Equal] = Equal[Maybe[A]]
     def order[A: Order] = Order[Maybe[A]]
     def semigroup[A: Semigroup] = Monoid[Maybe[A]]
+    def semiLattice[A: SemiLattice] = SemiLattice[Maybe[A]]
     def bindRec = BindRec[Maybe]
     def monad = Monad[Maybe]
 
@@ -101,5 +108,6 @@ object MaybeTest extends SpecLite {
 
     // checking absence of ambiguity
     def equal[A: Order] = Equal[Maybe[A]]
+    def monoid[A: SemiLattice] = Monoid[Maybe[A]]
   }
 }

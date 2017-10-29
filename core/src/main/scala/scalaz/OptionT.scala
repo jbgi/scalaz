@@ -20,10 +20,17 @@ final case class OptionT[F[_], A](run: F[Option[A]]) {
     }
   )
 
-  def flatMapF[B](f: A => F[B])(implicit F: Monad[F]): OptionT[F, B] = new OptionT[F, B](
+  def mapF[B](f: A => F[B])(implicit F: Monad[F]): OptionT[F, B] = new OptionT[F, B](
     F.bind(self.run) {
       case None    => F.point(none[B])
       case Some(z) => F.map(f(z))(b => some(b))
+    }
+  )
+
+  def flatMapF[B](f: A => F[Option[B]])(implicit F: Monad[F]): OptionT[F, B] = new OptionT[F, B](
+    F.bind(self.run) {
+      case None    => F.point(none[B])
+      case Some(z) => f(z)
     }
   )
 
@@ -94,7 +101,7 @@ final case class OptionT[F[_], A](run: F[Option[A]]) {
   /** @since 7.0.3 */
   def toRight[E](e: => E)(implicit F: Functor[F]): EitherT[F,E,A] = EitherT(F.map(run)(std.option.toRight(_)(e)))
 
-  def toListT(implicit F: Functor[F]) : ListT[F, A] =  ListT[F,A](F.map(run)(_.toList))
+  def toListT(implicit F: Functor[F]) : ListT[F, A] =  ListT[F,A](F.map(run)(IList.fromOption))
 
   /** @since 7.0.3 */
   def toLeft[B](b: => B)(implicit F: Functor[F]): EitherT[F,A,B] = EitherT(F.map(run)(std.option.toLeft(_)(b)))
@@ -156,7 +163,7 @@ sealed abstract class OptionTInstances extends OptionTInstances0 {
 }
 
 object OptionT extends OptionTInstances {
-  def optionT[M[_]] =
+  def optionT[M[_]]: λ[α => M[Option[α]]] ~> OptionT[M, ?] =
     λ[λ[α => M[Option[α]]] ~> OptionT[M, ?]](
       new OptionT(_)
     )
@@ -272,7 +279,7 @@ private trait OptionTMonadListen[F[_], W] extends MonadListen[OptionT[F, ?], W] 
   def listen[A](ma: OptionT[F, A]): OptionT[F, (A, W)] = {
     val tmp = MT.bind[(Option[A], W), Option[(A, W)]](MT.listen(ma.run)) {
       case (None, _) => MT.point(None)
-      case (Some(a), w) => MT.point(Some(a, w))
+      case (Some(a), w) => MT.point(Some((a, w)))
     }
 
     OptionT.optionT[F].apply[(A, W)](tmp)

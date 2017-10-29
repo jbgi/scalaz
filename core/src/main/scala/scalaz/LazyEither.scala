@@ -16,10 +16,10 @@ sealed abstract class LazyEither[+A, +B] {
   def ?[X](left: => X, right: => X): X =
     fold(_ => left, _ => right)
 
-  def isLeft =
+  def isLeft: Boolean =
     fold(_ => true, _ => false)
 
-  def isRight =
+  def isRight: Boolean =
     !isLeft
 
   def swap: LazyEither[B, A] =
@@ -54,6 +54,9 @@ sealed abstract class LazyEither[+A, +B] {
 
   def toList: List[B] =
     fold(_ => Nil, _ :: Nil)
+
+  def toIList[BB >: B]: IList[BB] =
+    fold(_ => INil(), ICons(_, INil()))
 
   def toStream: Stream[B] =
     fold(_ => Stream(), Stream(_))
@@ -178,7 +181,7 @@ sealed abstract class LazyEitherInstances {
       def point[A](a: => A): LazyEither[E, A] =
         LazyEither.lazyRight(a)
 
-      def cozip[A, B](a: LazyEither[E, A \/ B]) =
+      def cozip[A, B](a: LazyEither[E, A \/ B]): LazyEither[E, A] \/ LazyEither[E, B] =
         a.fold(
           e => -\/(LazyEither.lazyLeft(e))
         , {

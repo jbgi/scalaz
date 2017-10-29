@@ -49,6 +49,11 @@ object EitherTTest extends SpecLite {
     a.flatMap(f andThen EitherT.apply) must_=== a.flatMapF(f)
   }
 
+  "mapF consistent with map" ! forAll { (a: EitherTList[Int, Int], f: Int => String) =>
+    a.map(f) must_=== a.mapF(f andThen (s => Applicative[List].point(s)))
+  }
+
+
   "orElse only executes the left hand monad once" should {
     val counter = new AtomicInteger(0)
     val inc: EitherTComputation[Int] = EitherT.right(() => counter.incrementAndGet())
@@ -81,6 +86,10 @@ object EitherTTest extends SpecLite {
     def bifunctor[F[_] : Traverse] = Bifunctor[EitherT[F, ?, ?]]
     def bifoldable[F[_] : Traverse] = Bifoldable[EitherT[F, ?, ?]]
     def monadError[F[_] : Monad, A] = MonadError[EitherT[F, A, ?], A]
+    def nondeterminism[F[_] : Nondeterminism, A] = Nondeterminism[EitherT[F, A, ?]]
+    def nondeterminismMonad[F[_] : Nondeterminism, A] = Monad[EitherT[F, A, ?]]
+    def nondeterminismFunctor[F[_] : Nondeterminism: BindRec: Traverse, A] = Functor[EitherT[F, A, ?]]
+    def nondeterminismMonad[F[_] : Nondeterminism: BindRec: Traverse, A] = Monad[EitherT[F, A, ?]]
   }
 
   def compilationTests() = {

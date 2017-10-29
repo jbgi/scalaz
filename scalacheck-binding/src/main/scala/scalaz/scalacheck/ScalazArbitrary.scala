@@ -203,6 +203,18 @@ object ScalazArbitrary extends ScalazArbitraryPlatform {
   implicit def cogenLazyTuple4[A1: Cogen, A2: Cogen, A3: Cogen, A4: Cogen]: Cogen[LazyTuple4[A1, A2, A3, A4]] =
     Cogen[(A1, A2, A3, A4)].contramap(t => (t._1, t._2, t._3, t._4))
 
+  implicit def cogenAp[F[_], A](implicit F: Cogen[F[A]]): Cogen[Ap[F, A]] =
+    F.contramap(_.f)
+
+  implicit def apArbitrary[F[_], A](implicit F: Arbitrary[F[A]]): Arbitrary[Ap[F, A]] =
+    Functor[Arbitrary].map(F)(Ap[F, A](_))
+
+  implicit def cogenAlter[F[_], A](implicit F: Cogen[F[A]]): Cogen[Alter[F, A]] =
+    F.contramap(_.f)
+
+  implicit def alterArbitrary[F[_], A](implicit F: Arbitrary[F[A]]): Arbitrary[Alter[F, A]] =
+    Functor[Arbitrary].map(F)(Alter[F, A](_))
+
   implicit def monoidCoproductArbitrary[M: Arbitrary, N: Arbitrary]: Arbitrary[M :+: N] =
     Functor[Arbitrary].map(arb[Vector[M \/ N]])(new :+:(_))
 
@@ -220,13 +232,13 @@ object ScalazArbitrary extends ScalazArbitraryPlatform {
   implicit def endomorphicArbitrary[F[_, _], A](implicit F: Arbitrary[F[A, A]]): Arbitrary[Endomorphic[F, A]] =
     Functor[Arbitrary].map(F)(Endomorphic[F, A](_))
 
-  implicit def EphemeralStreamArbitrary[A : Arbitrary] =
+  implicit def EphemeralStreamArbitrary[A : Arbitrary]: Arbitrary[EphemeralStream[A]] =
     Functor[Arbitrary].map(arb[Stream[A]])(EphemeralStream.fromStream[A](_))
 
   implicit def CorecursiveListArbitrary[A : Arbitrary]: Arbitrary[CorecursiveList[A]] =
     Functor[Arbitrary].map(arb[Stream[A]])(CorecursiveList.fromStream)
 
-  implicit def ImmutableArrayArbitrary[A : Arbitrary : ClassTag] =
+  implicit def ImmutableArrayArbitrary[A : Arbitrary : ClassTag]: Arbitrary[ImmutableArray[A]] =
     Functor[Arbitrary].map(arb[Array[A]])(ImmutableArray.fromArray[A](_))
 
   implicit def ValueArbitrary[A: Arbitrary]: Arbitrary[Value[A]] = Functor[Arbitrary].map(arb[A])(a => Value(a))
@@ -235,7 +247,10 @@ object ScalazArbitrary extends ScalazArbitraryPlatform {
 
   implicit val UnitArbitrary: Arbitrary[Unit] = Arbitrary(const(()))
 
-  implicit val AlphaArbitrary: Arbitrary[Alpha] = Arbitrary(oneOf(Alpha.alphas))
+  implicit val AlphaArbitrary: Arbitrary[Alpha] = {
+    val alphaList = Alpha.alphas.toList
+    Arbitrary(oneOf(alphaList))
+  }
 
   implicit val BooleanConjunctionArbitrary: Arbitrary[Boolean @@ Conjunction] = Functor[Arbitrary].map(arb[Boolean])(_.conjunction)
 
@@ -262,7 +277,10 @@ object ScalazArbitrary extends ScalazArbitraryPlatform {
 
   implicit val DoubleMultiplicationArbitrary: Arbitrary[Double @@ Multiplication] = Tag.subst(arb[Double])
 
-  implicit val DigitArbitrary: Arbitrary[Digit] = Arbitrary(oneOf(Digit.digits))
+  implicit val DigitArbitrary: Arbitrary[Digit] = {
+    val digitList = Digit.digits.toList
+    Arbitrary(oneOf(digitList))
+  }
 
   import NonEmptyList._
   implicit def NonEmptyListArbitrary[A: Arbitrary]: Arbitrary[NonEmptyList[A]] = Apply[Arbitrary].apply2[A, IList[A], NonEmptyList[A]](arb[A], ilistArbitrary)(nel(_, _))
@@ -532,11 +550,11 @@ object ScalazArbitrary extends ScalazArbitraryPlatform {
   implicit def constArbitrary[A: Arbitrary, B]: Arbitrary[Const[A, B]] =
     Functor[Arbitrary].map(arb[A])(Const(_))
 
-  implicit def dlistArbitrary[A](implicit A: Arbitrary[List[A]]) = Functor[Arbitrary].map(A)(as => DList(as : _*))
+  implicit def dlistArbitrary[A](implicit A: Arbitrary[List[A]]): Arbitrary[DList[A]] = Functor[Arbitrary].map(A)(as => DList(as : _*))
 
-  implicit def ilistArbitrary[A](implicit A: Arbitrary[List[A]]) = Functor[Arbitrary].map(A)(IList.fromList)
+  implicit def ilistArbitrary[A](implicit A: Arbitrary[List[A]]): Arbitrary[IList[A]] = Functor[Arbitrary].map(A)(IList.fromList)
 
-  implicit def dequeueArbitrary[A](implicit A: Arbitrary[List[A]]) = Functor[Arbitrary].map(A)(Dequeue.apply)
+  implicit def dequeueArbitrary[A](implicit A: Arbitrary[List[A]]): Arbitrary[Dequeue[A]] = Functor[Arbitrary].map(A)(Dequeue.apply)
 
   implicit def lazyTuple2Arbitrary[A: Arbitrary, B: Arbitrary]: Arbitrary[LazyTuple2[A, B]] =
     Applicative[Arbitrary].apply2(arb[A], arb[B])(LazyTuple2(_, _))
@@ -547,7 +565,7 @@ object ScalazArbitrary extends ScalazArbitraryPlatform {
   implicit def lazyTuple4Arbitrary[A: Arbitrary, B: Arbitrary, C: Arbitrary, D: Arbitrary]: Arbitrary[LazyTuple4[A, B, C, D]] =
     Applicative[Arbitrary].apply4(arb[A], arb[B], arb[C], arb[D])(LazyTuple4(_, _, _, _))
 
-  implicit def heapArbitrary[A](implicit O: Order[A], A: Arbitrary[List[A]]) = {
+  implicit def heapArbitrary[A](implicit O: Order[A], A: Arbitrary[List[A]]): Arbitrary[Heap[A]] = {
     Functor[Arbitrary].map(A)(as => Heap.fromData(as))
   }
 
@@ -556,12 +574,9 @@ object ScalazArbitrary extends ScalazArbitraryPlatform {
 
   implicit def indexedStoreTArb[F[_], I, A, B](implicit A: Arbitrary[(F[A => B], I)]): Arbitrary[IndexedStoreT[F, I, A, B]] = Functor[Arbitrary].map(A)(IndexedStoreT[F, I, A, B](_))
 
-  implicit def listTArb[F[_], A](implicit FA: Arbitrary[F[List[A]]], F: Applicative[F]): Arbitrary[ListT[F, A]] = Functor[Arbitrary].map(FA)(ListT.fromList(_))
+  implicit def listTArb[F[_]: Applicative, A](implicit FA: Arbitrary[F[IList[A]]]): Arbitrary[ListT[F, A]] = Functor[Arbitrary].map(FA)(ListT.fromIList(_))
 
   implicit def streamTArb[F[_], A](implicit FA: Arbitrary[F[Stream[A]]], F: Applicative[F]): Arbitrary[StreamT[F, A]] = Functor[Arbitrary].map(FA)(StreamT.fromStream(_))
-
-  // workaround bug in Scalacheck 1.8-SNAPSHOT.
-  private def arbDouble: Arbitrary[Double] = Arbitrary { Gen.oneOf(posNum[Double], negNum[Double])}
 
   implicit def CaseInsensitiveArbitrary[A](implicit A0: Arbitrary[A], A1: FoldCase[A]): Arbitrary[CaseInsensitive[A]] =
     Functor[Arbitrary].map(A0)(CaseInsensitive(_))

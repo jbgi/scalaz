@@ -5,7 +5,7 @@ import collection.immutable.{Map, MapLike} // Just so we're clear.
 import collection.generic.CanBuildFrom
 
 trait MapSub {
-  type XMap[K, V] <: Map[K, V] with MapLike[K, V, XMap[K, V]]
+  type XMap[K, +V] <: Map[K, V] with MapLike[K, V, XMap[K, V]]
   /** Evidence on key needed to construct new maps. */
   type BuildKeyConstraint[K]
   protected implicit def buildXMap[K, V, K2: BuildKeyConstraint, V2]
@@ -24,10 +24,32 @@ trait MapSub {
   private[std]
   def fromSeq[K: BuildKeyConstraint, V](as: (K, V)*): XMap[K, V] =
     buildXMap[K, V, K, V].apply().++=(as).result()
+
+  import syntax.std.function2._
+  private[scalaz] sealed trait MapMonoid[K, V] extends Monoid[XMap[K, V]] {
+    implicit def V: Semigroup[V]
+    implicit def BK: BuildKeyConstraint[K]
+
+    def zero = fromSeq[K, V]()
+    def append(m1: XMap[K, V], m2: => XMap[K, V]) = {
+      // Eagerly consume m2 as the value is used more than once.
+      val m2Instance: XMap[K, V] = m2
+      // semigroups are not commutative, so order may matter.
+      val (from, to, semigroup) = {
+        if (m1.size > m2Instance.size) (m2Instance, m1, Semigroup[V].append(_: V, _: V))
+        else (m1, m2Instance, (Semigroup[V].append(_: V, _: V)).flip)
+      }
+
+      from.foldLeft(to) {
+        case (to, (k, v)) => ab_+(to, k, to.get(k).map(semigroup(_, v)).getOrElse(v))
+      }
+    }
+  }
+
 }
 
 sealed trait MapSubMap extends MapSub {
-  type XMap[K, V] = Map[K, V]
+  type XMap[K, +V] = Map[K, V]
   type BuildKeyConstraint[K] = DummyImplicit
   protected final def buildXMap[K, V, K2: BuildKeyConstraint, V2] = implicitly
 
@@ -78,10 +100,16 @@ trait MapSubInstances0 extends MapSub {
 
   implicit def mapFoldable[K]: Foldable[XMap[K, ?]] =
     new MapFoldable[K]{}
+
+  implicit def mapBand[K, V](implicit B: BuildKeyConstraint[K], S: Band[V]): Band[XMap[K, V]] =
+    new MapMonoid[K, V] with Band[XMap[K, V]] {
+      implicit override def V = S
+      implicit override def BK = B
+    }
 }
 
 trait MapSubInstances extends MapSubInstances0 with MapSubFunctions {
-  import syntax.std.function2._
+  import Liskov.<~<
 
   /** Covariant over the value parameter, where `plus` applies the
     * `Last` semigroup to values.
@@ -93,6 +121,7 @@ trait MapSubInstances extends MapSubInstances0 with MapSubFunctions {
       def isEmpty[V](fa: XMap[K, V]) = fa.isEmpty
       def bind[A, B](fa: XMap[K,A])(f: A => XMap[K, B]) = fa.collect{case (k, v) if f(v).isDefinedAt(k) => k -> f(v)(k)}
       override def map[A, B](fa: XMap[K, A])(f: A => B) = fa.transform{case (_, v) => f(v)}
+      override def widen[A, B](fa: XMap[K, A])(implicit ev: A <~< B) = Liskov.co[XMap[K, +?], A, B](ev)(fa)
       def traverseImpl[G[_],A,B](m: XMap[K,A])(f: A => G[B])(implicit G: Applicative[G]): G[XMap[K,B]] =
         G.map(list.listInstance.traverseImpl(m.toList)({ case (k, v) => G.map(f(v))(k -> _) }))(xs => fromSeq(xs:_*))
       import \&/._
@@ -117,22 +146,10 @@ trait MapSubInstances extends MapSubInstances0 with MapSubFunctions {
     }
 
   /** Map union monoid, unifying values with `V`'s `append`. */
-  implicit def mapMonoid[K: BuildKeyConstraint, V: Semigroup]: Monoid[XMap[K, V]] =
-    new Monoid[XMap[K, V]] {
-      def zero = fromSeq[K, V]()
-      def append(m1: XMap[K, V], m2: => XMap[K, V]) = {
-        // Eagerly consume m2 as the value is used more than once.
-        val m2Instance: XMap[K, V] = m2
-        // semigroups are not commutative, so order may matter.
-        val (from, to, semigroup) = {
-          if (m1.size > m2Instance.size) (m2Instance, m1, Semigroup[V].append(_: V, _: V))
-          else (m1, m2Instance, (Semigroup[V].append(_: V, _: V)).flip)
-        }
-
-        from.foldLeft(to) {
-          case (to, (k, v)) => ab_+(to, k, to.get(k).map(semigroup(_, v)).getOrElse(v))
-        }
-      }
+  implicit def mapMonoid[K, V](implicit S: Semigroup[V], B: BuildKeyConstraint[K]): Monoid[XMap[K, V]] =
+    new MapMonoid[K, V] { self =>
+      implicit override def V = S
+      implicit override def BK = B
     }
 
   implicit def mapShow[K, V](implicit K: Show[K], V: Show[V]): Show[XMap[K, V]] =
@@ -208,8 +225,8 @@ trait MapSubFunctions extends MapSub {
   /** Grab a value out of Map if it's present. Otherwise evaluate
     * a value to be placed at that key in the Map.
     */
-  final def getOrAdd[F[_],K,A](m: XMap[K, A], k: K)(fa: => F[A])(implicit F: Applicative[F], K: BuildKeyConstraint[K]): F[(XMap[K, A], A)] =
-    (m get k).map(a => F.point(m, a)).getOrElse(F.map(fa)(a => (ab_+(m, k, a), a)))
+  final def getOrAdd[F[_],K: BuildKeyConstraint,A](m: XMap[K, A], k: K)(fa: => F[A])(implicit F: Applicative[F]): F[(XMap[K, A], A)] =
+    (m get k).fold(F.map(fa)(a => (ab_+(m, k, a), a)))(a => F.point((m, a)))
 }
 
 trait MapInstances extends MapSubInstances with MapSubMap

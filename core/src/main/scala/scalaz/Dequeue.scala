@@ -36,7 +36,7 @@ sealed abstract class Dequeue[A] {
       val xsr = reverseNEL(OneAnd(xx, xs))
       Just((f, FullDequeue(xsr, bs-1, OneAnd(x, IList.empty), 1)))
     }
-    case FullDequeue(OneAnd(f, ICons(ff, fs)), s, back, bs) => Just(f, FullDequeue(OneAnd(ff, fs), s-1, back, bs))
+    case FullDequeue(OneAnd(f, ICons(ff, fs)), s, back, bs) => Just((f, FullDequeue(OneAnd(ff, fs), s - 1, back, bs)))
   }
 
   /**
@@ -175,7 +175,7 @@ sealed abstract class Dequeue[A] {
 }
 
 object Dequeue extends DequeueInstances {
-  def apply[A](as: A*) = as.foldLeft[Dequeue[A]](empty)((q,a) ⇒ q :+ a)
+  def apply[A](as: A*): Dequeue[A] = as.foldLeft[Dequeue[A]](empty)((q, a) ⇒ q :+ a)
 
   def fromFoldable[F[_],A](fa: F[A])(implicit F: Foldable[F]): Dequeue[A] =
     F.foldLeft[A,Dequeue[A]](fa,empty)((q,a) ⇒ q :+ a)

@@ -26,14 +26,13 @@ import Liskov.<~<
  */
 sealed abstract class \/[+A, +B] extends Product with Serializable {
   final class SwitchingDisjunction[X](r: => X) {
-    def <<?:(left: => X): X =
-      \/.this match {
-        case -\/(_) => left
-        case \/-(_) => r
-      }
+    def <<?:(left: X): X =
+      foldConst(left, r)
   }
 
   /** If this disjunction is right, return the given X value, otherwise, return the X value given to the return value. */
+  @deprecated("Due to SI-1980, <<?: will always evaluate its left argument; use foldConst instead",
+              since = "7.3.0")
   def :?>>[X](right: => X): SwitchingDisjunction[X] =
     new SwitchingDisjunction[X](right)
 
@@ -56,6 +55,13 @@ sealed abstract class \/[+A, +B] extends Product with Serializable {
     this match {
       case -\/(a) => l(a)
       case \/-(b) => r(b)
+    }
+
+  /** Evaluate `l` and return if left, otherwise, `r`. */
+  def foldConst[X](l: => X, r: => X): X =
+    this match {
+      case -\/(a) => l
+      case \/-(b) => r
     }
 
   /** Spin in tail-position on the right value of this disjunction. */
@@ -122,7 +128,7 @@ sealed abstract class \/[+A, +B] extends Product with Serializable {
 
   /** Run the side-effect on the right of this disjunction. */
   def foreach(g: B => Unit): Unit =
-    bimap(_ => (), g)
+    fold(_ => (), g)
 
   /** Apply a function in the environment of the right of this disjunction. */
   def ap[AA >: A, C](f: => AA \/ (B => C)): (AA \/ C) =
@@ -169,6 +175,14 @@ sealed abstract class \/[+A, +B] extends Product with Serializable {
       case -\/(_) => Nil
       case \/-(b) => b :: Nil
     }
+
+  /** Return an empty list or list with one element on the right of this disjunction. */
+  def toIList[BB >: B]: IList[BB] =
+    this match {
+      case -\/(_) => INil()
+      case \/-(b) => b :: INil()
+    }
+
 
   /** Return an empty stream or stream with one element on the right of this disjunction. */
   def toStream: Stream[B] =
@@ -363,7 +377,7 @@ object \/ extends DisjunctionInstances {
   def fromEither[A, B](e: Either[A, B]): A \/ B =
     e fold (left, right)
 
-  def fromTryCatchThrowable[T, E <: Throwable](a: => T)(implicit nn: NotNothing[E], ex: ClassTag[E]): E \/ T = try {
+  def fromTryCatchThrowable[T, E <: Throwable: NotNothing](a: => T)(implicit ex: ClassTag[E]): E \/ T = try {
     \/-(a)
   } catch {
     case e if ex.runtimeClass.isInstance(e) => -\/(e.asInstanceOf[E])
@@ -435,6 +449,12 @@ sealed abstract class DisjunctionInstances0 extends DisjunctionInstances1 {
 }
 
 sealed abstract class DisjunctionInstances1 extends DisjunctionInstances2 {
+  implicit def DisjunctionBand[A: Band, B: Band]: Band[A \/ B] =
+    new Band[A \/ B] {
+      def append(a1: A \/ B, a2: => A \/ B) =
+        a1 +++ a2
+    }
+
   implicit def DisjunctionInstances1[L]: Traverse[L \/ ?] with Monad[L \/ ?] with BindRec[L \/ ?] with Cozip[L \/ ?] with Plus[L \/ ?] with Optional[L \/ ?] with MonadError[L \/ ?, L] =
     new Traverse[L \/ ?] with Monad[L \/ ?] with BindRec[L \/ ?] with Cozip[L \/ ?] with Plus[L \/ ?] with Optional[L \/ ?] with MonadError[L \/ ?, L] {
       override def map[A, B](fa: L \/ A)(f: A => B) =

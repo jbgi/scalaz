@@ -43,7 +43,7 @@ final class FoldableOps[F[_],A] private[syntax](val self: F[A])(implicit val F: 
   final def toStream: Stream[A] = F.toStream(self)
   final def toIList: IList[A] = F.toIList(self)
   final def toEphemeralStream: EphemeralStream[A] = F.toEphemeralStream(self)
-  final def to[G[_]](implicit c: CanBuildFrom[Nothing, A, G[A]]) = F.to[A, G](self)
+  final def to[G[_]](implicit c: CanBuildFrom[Nothing, A, G[A]]): G[A] = F.to[A, G](self)
   final def all(p: A => Boolean): Boolean = F.all(self)(p)
   final def ∀(p: A => Boolean): Boolean = F.all(self)(p)
   final def allM[G[_]: Monad](p: A => G[Boolean]): G[Boolean] = F.allM(self)(p)
@@ -58,8 +58,12 @@ final class FoldableOps[F[_],A] private[syntax](val self: F[A])(implicit val F: 
   final def minimum(implicit A: Order[A]): Option[A] = F.minimum(self)
   final def minimumOf[B: Order](f: A => B): Option[B] = F.minimumOf(self)(f)
   final def minimumBy[B: Order](f: A => B): Option[A] = F.minimumBy(self)(f)
+  final def extrema(implicit A: Order[A]): Option[(A, A)] = F.extrema(self)
+  final def extremaOf[B: Order](f: A => B): Option[(B, B)] = F.extremaOf(self)(f)
+  final def extremaBy[B: Order](f: A => B): Option[(A, A)] = F.extremaBy(self)(f)
   final def distinct(implicit A: Order[A]): IList[A] = F.distinct(self)
   final def distinctE(implicit A: Equal[A]): IList[A] = F.distinctE(self)
+  final def distinctBy[B: Equal](f: A => B): IList[A] = F.distinctBy(self)(f)
   final def longDigits(implicit d: A <:< Digit): Long = F.longDigits(self)
   final def empty: Boolean = F.empty(self)
   final def element(a: A)(implicit A: Equal[A]): Boolean = F.element(self, a)
@@ -82,20 +86,22 @@ final class FoldableOps[F[_],A] private[syntax](val self: F[A])(implicit val F: 
   ////
 }
 
-sealed trait ToFoldableOps0 {
-  implicit def ToFoldableOpsUnapply[FA](v: FA)(implicit F0: Unapply[Foldable, FA]) =
+sealed trait ToFoldableOpsU[TC[F[_]] <: Foldable[F]] {
+  implicit def ToFoldableOpsUnapply[FA](v: FA)(implicit F0: Unapply[TC, FA]) =
     new FoldableOps[F0.M,F0.A](F0(v))(F0.TC)
 
 }
 
-trait ToFoldableOps extends ToFoldableOps0 {
-  implicit def ToFoldableOps[F[_],A](v: F[A])(implicit F0: Foldable[F]) =
+trait ToFoldableOps0[TC[F[_]] <: Foldable[F]] extends ToFoldableOpsU[TC] {
+  implicit def ToFoldableOps[F[_],A](v: F[A])(implicit F0: TC[F]) =
     new FoldableOps[F,A](v)
 
   ////
 
   ////
 }
+
+trait ToFoldableOps[TC[F[_]] <: Foldable[F]] extends ToFoldableOps0[TC]
 
 trait FoldableSyntax[F[_]]  {
   implicit def ToFoldableOps[A](v: F[A]): FoldableOps[F, A] = new FoldableOps[F,A](v)(FoldableSyntax.this.F)

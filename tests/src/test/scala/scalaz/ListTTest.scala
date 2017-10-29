@@ -13,6 +13,11 @@ object ListTTest extends SpecLite {
       ListT.fromList(ass).toList must_===(ass)
   }
 
+  "fromIList / toIList" ! forAll {
+    (ass: IList[IList[Int]]) =>
+    ListT.fromIList(ass).toIList must_===(ass)
+  }
+
   "filter all" ! forAll {
     (ass: ListT[List, Int]) =>
       ass.filter(_ => true) must_===(ass)
@@ -45,6 +50,10 @@ object ListTTest extends SpecLite {
       ListT.fromList(ass).map(_ * 2).toList must_===(ass.map(_.map(_ * 2)))
   }
 
+  "mapF consistent with map" ! forAll { (fa: ListTOpt[Int], f: Int => Int) =>
+    fa.map(f) must_=== fa.mapF(f andThen (i => Applicative[Option].point(i)))
+  }
+
   "collect" ! forAll {
     (ass: List[List[Int]]) =>
       val pf : PartialFunction[Int, String] = { case (i : Int) if i > 2 => i.toString }
@@ -57,6 +66,10 @@ object ListTTest extends SpecLite {
       must_===(ass.map(_.flatMap(number => List(number.toFloat)))))
   }
 
+  "flatMapF consistent with flatMap" ! forAll { (fa: ListTOpt[Int], f: Int => Option[IList[String]]) =>
+    fa.flatMap(f andThen ListT.apply) must_=== fa.flatMapF(f)
+  }
+
   // Exists to ensure that fromList and map don't stack overflow.
   "large map" ! {
     val list = (0 to 400).toList.map(_ => (0 to 400).toList)
@@ -65,7 +78,7 @@ object ListTTest extends SpecLite {
   }
 
   "listT" ! forAll {
-    (ass: Option[List[Int]]) =>
+    (ass: Option[IList[Int]]) =>
       ListT.listT(ass).run == ass
   }
 

@@ -56,6 +56,9 @@ final case class LazyEitherT[F[_], A, B](run: F[LazyEither[A, B]]) {
   def toList(implicit F: Functor[F]): F[List[B]] =
     F.map(run)(_.toList)
 
+  def toIList(implicit F: Functor[F]): F[IList[B]] =
+    F.map(run)(_.toIList)
+
   def toStream(implicit F: Functor[F]): F[Stream[B]] =
     F.map(run)(_.toStream)
 
@@ -102,9 +105,9 @@ object LazyEitherT extends LazyEitherTInstances {
     LazyEitherT(a)
 
   def lazyEitherTU[FAB, AB, A0, B0](fab: FAB)(implicit
-    u1: Unapply[Functor, FAB]{type A = AB},
-    u2: Unapply2[Bifunctor, AB]{type A = A0; type B = B0},
-    l: Leibniz.===[AB, LazyEither[A0, B0]]
+                                              u1: Unapply[Functor, FAB]{type A = AB},
+                                              @deprecated("scala/bug#5075", "") u2: Unapply2[Bifunctor, AB]{type A = A0; type B = B0},
+                                              l: Leibniz.===[AB, LazyEither[A0, B0]]
   ): LazyEitherT[u1.M, A0, B0] = LazyEitherT(l.subst[u1.M](u1(fab)))
 
   import LazyEither._

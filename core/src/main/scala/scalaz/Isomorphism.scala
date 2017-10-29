@@ -1,32 +1,6 @@
 package scalaz
 
-sealed abstract class IsomorphismsLow1 {
-  self: Isomorphisms =>
-
-  /**Set isomorphism is commutative */
-  implicit def isoCommutative[A, B](implicit i: A <=> B): B <=> A = i.flip
-
-  /**Natural isomorphism is commutative */
-  implicit def isoNaturalCommutative[F[_], G[_]](implicit i: F <~> G): G <~> F = i.flip
-}
-
-sealed abstract class IsomorphismsLow0 extends IsomorphismsLow1 {
-  self: Isomorphisms =>
-
-  /**Set isomorphism is reflexive */
-  implicit def isoRefl[A]: A <=> A = new (A <=> A) {
-    def to: A => A = a => a
-    def from: A => A = a => a
-  }
-
-  /**Natural isomorphism is reflexive */
-  implicit def isoNaturalRefl[F[_]]: F <~> F = new IsoFunctorTemplate[F, F] {
-    def to[A](fa: F[A]): F[A] = fa
-    def from[A](fa: F[A]): F[A] = fa
-  }
-}
-
-sealed abstract class Isomorphisms extends IsomorphismsLow0{
+sealed abstract class Isomorphisms {
 
   /**Isomorphism for arrows of kind * -> * -> * */
   trait Iso[Arr[_, _], A, B] {
@@ -131,20 +105,44 @@ sealed abstract class Isomorphisms extends IsomorphismsLow0{
   /**Alias for IsoSet */
   type <=>[A, B] = IsoSet[A, B]
 
+  object IsoSet {
+    /**Convenience constructor to implement `A <=> B` from `A => B` and `B => A` */
+    def apply[A, B](to: A => B, from: B => A): A <=> B = {
+      val _to   = to
+      val _from = from
+      new Iso[Function1, A, B] {
+        override val to   = _to
+        override val from = _from
+      }
+    }
+  }
+
   /**Alias for IsoFunctor */
   type <~>[F[_], G[_]] = IsoFunctor[F, G]
 
   /**Convenience template trait to implement `<~>` */
   trait IsoFunctorTemplate[F[_], G[_]] extends IsoFunctor[F, G] {
-    final val to: NaturalTransformation[F, G] = new (F ~> G) {
+    override final val to: NaturalTransformation[F, G] = new (F ~> G) {
       def apply[A](fa: F[A]): G[A] = to[A](fa)
     }
-    final val from: NaturalTransformation[G, F] = new (G ~> F) {
+    override final val from: NaturalTransformation[G, F] = new (G ~> F) {
       def apply[A](ga: G[A]): F[A] = from[A](ga)
     }
 
     def to[A](fa: F[A]): G[A]
     def from[A](ga: G[A]): F[A]
+  }
+
+  object IsoFunctor {
+    /**Convenience constructor to implement `F <~> G` from F ~> G and G ~> F */
+    def apply[F[_], G[_]](to: F ~> G, from: G ~> F): F <~> G = {
+      val _to   = to
+      val _from = from
+      new (F <~> G) {
+        override val to = _to
+        override val from = _from
+      }
+    }
   }
 
   /**Alias for IsoBifunctor */
@@ -162,6 +160,24 @@ sealed abstract class Isomorphisms extends IsomorphismsLow0{
     def to[A, B](fa: F[A, B]): G[A, B]
     def from[A, B](ga: G[A, B]): F[A, B]
   }
+
+  /**Set isomorphism is commutative */
+  def commutative[A, B](i: A <=> B): B <=> A = i.flip
+
+  /**Set isomorphism is reflexive */
+  def refl[A]: A <=> A = new (A <=> A) {
+    def to: A => A = a => a
+    def from: A => A = a => a
+  }
+
+  /**Natural isomorphism is reflexive */
+  def naturalRefl[F[_]]: F <~> F = new IsoFunctorTemplate[F, F] {
+    def to[A](fa: F[A]): F[A] = fa
+    def from[A](fa: F[A]): F[A] = fa
+  }
+
+  /**Natural isomorphism is commutative */
+  def naturalCommutative[F[_], G[_]](i: F <~> G): G <~> F = i.flip
 
 }
 
