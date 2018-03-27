@@ -427,6 +427,9 @@ sealed abstract class FreeInstances0 extends FreeInstances1 {
 }
 
 sealed abstract class FreeInstances extends FreeInstances0 {
+
+  implicit def suspendable[S[_], A]: Suspendable[Free[S, A]] = Free.suspend(_)
+
   implicit def freeMonad[S[_]]: Monad[Free[S, ?]] with BindRec[Free[S, ?]] =
     new Monad[Free[S, ?]] with BindRec[Free[S, ?]] {
       override def map[A, B](fa: Free[S, A])(f: A => B) = fa map f

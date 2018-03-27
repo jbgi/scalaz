@@ -18,8 +18,22 @@ trait Foldable[F[_]]  { self =>
     foldMap(fa)(x => some(f(x)))
   }
 
+  /**Right-associative fold of a structure. Not stack-safe if f is strict in second argument. */
+  def foldRightByName[A, B](fa: F[A], z: => B)(f: (A, => B) => B): B
+
   /**Right-associative fold of a structure. */
-  def foldRight[A, B](fa: F[A], z: => B)(f: (A, => B) => B): B
+  final def foldRightSuspend[A, B](fa: F[A], z: => B)(f: (A, B) => B)(implicit B: Suspendable[B]): B =
+    B.suspend(foldRightByName(fa, z)((a, b) => f(a, B.suspend(b))))
+
+  /**Right-associative, strictly evaluated, fold of a structure. */
+  def foldRight[A, B](fa: F[A], z: B)(f: (A, B) => B): B =
+    foldRightSuspend(fa, Trampoline.done(z))((a, b) => b.map(f(a, _))).run
+
+  def foldRightET[A, B](fa: F[A], z: => B)(f: (A, B) => B, et: A => Maybe[B]): B = {
+    foldRightSuspend(fa, Trampoline.done(z))((a, b) => b.flatMap(et(a) match {
+
+    })).run
+  }
 
   /**The composition of Foldables `F` and `G`, `[x]F[G[x]]`, is a Foldable */
   def compose[G[_]](implicit G0: Foldable[G]): Foldable[λ[α => F[G[α]]]] =
@@ -99,8 +113,13 @@ trait Foldable[F[_]]  { self =>
   def sequenceF_[M[_], A](ffa: F[Free[M, A]]): Free[M, Unit] =
     foldLeft[Free[M,A],Free[M,Unit]](ffa, Free.pure[M, Unit](()))((c,d) => c.flatMap(_ => d.map(_ => ())))
 
+  /**Curried version of `foldRightByName` */
+  final def foldrByName[A, B](fa: F[A], z: => B)(f: A => (=> B) => B): B = foldRightByName(fa, z)((a, b) => f(a)(b))
   /**Curried version of `foldRight` */
-  final def foldr[A, B](fa: F[A], z: => B)(f: A => (=> B) => B): B = foldRight(fa, z)((a, b) => f(a)(b))
+  final def foldr[A, B](fa: F[A], z: B)(f: A => B => B): B = foldRight(fa, z)((a, b) => f(a)(b))
+  /**Curried version of `foldRightSuspend` */
+  final def foldrSuspend[A, B: Suspendable](fa: F[A], z: => B)(f: A => B => B): B = foldRightSuspend(fa, z)((a, b) => f(a)(b))
+
   def foldMapRight1Opt[A, B](fa: F[A])(z: A => B)(f: (A, => B) => B): Option[B] =
     foldRight(fa, None: Option[B])((a, optB) =>
       optB map (f(a, _)) orElse Some(z(a)))

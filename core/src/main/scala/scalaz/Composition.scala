@@ -49,8 +49,11 @@ private trait CompositionFoldable[F[_], G[_]] extends Foldable[λ[α => F[G[α]]
 
   implicit def G: Foldable[G]
 
-  override def foldRight[A, B](fa: F[G[A]], z: => B)(f: (A, => B) => B): B =
+  override def foldRight[A, B](fa: F[G[A]], z: B)(f: (A, B) => B): B =
     F.foldRight(fa, z)((a, b) => G.foldRight(a, b)(f))
+
+  override def foldRightByName[A, B](fa: F[G[A]], z: => B)(f: (A, => B) => B): B =
+    F.foldRightByName(fa, z)((a, b) => G.foldRightByName(a, b)(f))
 
   override def foldMap[A,B](fa: F[G[A]])(f: A => B)(implicit M: Monoid[B]): B =
     F.foldMap(fa)(G.foldMap(_)(f))
@@ -143,7 +146,9 @@ private trait CompositionBifoldable[F[_, _], G[_, _]] extends Bifoldable[λ[(α,
 
   override def bifoldMap[A,B,M](fa: F[G[A, B], G[A, B]])(f: A => M)(g: B => M)(implicit M: Monoid[M]): M =
     F.bifoldMap(fa)(G.bifoldMap(_)(f)(g))(G.bifoldMap(_)(f)(g))
-  override def bifoldRight[A,B,C](fa: F[G[A, B], G[A, B]], z: => C)(f: (A, => C) => C)(g: (B, => C) => C): C =
+  override def bifoldRightByName[A,B,C](fa: F[G[A, B], G[A, B]], z: => C)(f: (A, => C) => C)(g: (B, => C) => C): C =
+    F.bifoldRightByName(fa, z)((a, b) => G.bifoldRightByName(a, b)(f)(g))((a, b) => G.bifoldRightByName(a, b)(f)(g))
+  override def bifoldRight[A,B,C](fa: F[G[A, B], G[A, B]], z: C)(f: (A, C) => C)(g: (B, C) => C): C =
     F.bifoldRight(fa, z)((a, b) => G.bifoldRight(a, b)(f)(g))((a, b) => G.bifoldRight(a, b)(f)(g))
   override def bifoldLeft[A,B,C](fa: F[G[A, B], G[A, B]], z: C)(f: (C, A) => C)(g: (C, B) => C): C =
     F.bifoldLeft(fa, z)((b, a) => G.bifoldLeft(a, b)(f)(g))((b, a) => G.bifoldLeft(a, b)(f)(g))
@@ -189,7 +194,9 @@ private trait CompositionFoldableBifoldable[F[_], G[_, _]] extends Bifoldable[λ
 
   override def bifoldMap[A, B, M: Monoid](fa: F[G[A, B]])(f: A => M)(g: B => M) =
     F.foldMap(fa)(G.bifoldMap(_)(f)(g))
-  override def bifoldRight[A, B, C](fa: F[G[A, B]], z: => C)(f: (A, => C) => C)(g: (B, => C) => C) =
+  override def bifoldRightByName[A, B, C](fa: F[G[A, B]], z: => C)(f: (A, => C) => C)(g: (B, => C) => C) =
+    F.foldRightByName(fa, z)(G.bifoldRightByName(_, _)(f)(g))
+  override def bifoldRight[A, B, C](fa: F[G[A, B]], z: C)(f: (A, C) => C)(g: (B, C) => C) =
     F.foldRight(fa, z)(G.bifoldRight(_, _)(f)(g))
   override def bifoldLeft[A, B, C](fa: F[G[A, B]], z: C)(f: (C, A) => C)(g: (C, B) => C) =
     F.foldLeft(fa, z)((c, gab) => G.bifoldLeft(gab, c)(f)(g))
@@ -204,7 +211,9 @@ private trait CompositionBifoldableFoldables[F[_,_], G[_], H[_]] extends Bifolda
 
   override def bifoldMap[A, B, M: Monoid](fgahb: F[G[A], H[B]])(f: A => M)(g: B => M) =
     F.bifoldMap(fgahb)( ga => G.foldMap(ga)(f) )( hb => H.foldMap(hb)(g) )
-  override def bifoldRight[A, B, C](fgahb: F[G[A],H[B]], z: => C)(f: (A, => C) => C)(g: (B, => C) => C) =
+  override def bifoldRightByName[A, B, C](fgahb: F[G[A],H[B]], z: => C)(f: (A, => C) => C)(g: (B, => C) => C) =
+    F.bifoldRightByName(fgahb, z)( (ga, c) => G.foldRightByName(ga,c)(f) )( (hb,c) => H.foldRightByName(hb,c)(g) )
+  override def bifoldRight[A, B, C](fgahb: F[G[A],H[B]], z: C)(f: (A, C) => C)(g: (B, C) => C) =
     F.bifoldRight(fgahb, z)( (ga, c) => G.foldRight(ga,c)(f) )( (hb,c) => H.foldRight(hb,c)(g) )
   override def bifoldLeft[A, B, C](fgahb: F[G[A],H[B]], z: C)(f: (C, A) => C)(g: (C, B) => C) =
     F.bifoldLeft(fgahb, z)( (c,ga) => G.foldLeft(ga,c)(f) )( (c,hb) => H.foldLeft(hb,c)(g) )

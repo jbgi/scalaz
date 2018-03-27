@@ -240,6 +240,8 @@ object Future {
   case class BindAsync[A,B](onFinish: (A => Trampoline[Unit]) => Unit,
                             f: A => Future[B]) extends Future[B]
 
+  implicit def suspendable[A]: Suspendable[Future[A]] = Future.suspend(_)
+
   // NB: considered implementing Traverse and Comonad, but these would have
   // to run the Future; leaving out for now
 

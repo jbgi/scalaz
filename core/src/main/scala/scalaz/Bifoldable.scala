@@ -14,9 +14,21 @@ trait Bifoldable[F[_, _]]  { self =>
   /** Accumulate to `C` starting at the "right".  `f` and `g` may be
     * interleaved.
     */
-  def bifoldRight[A,B,C](fa: F[A, B], z: => C)(f: (A, => C) => C)(g: (B, => C) => C): C
+  def bifoldRightByName[A,B,C](fa: F[A, B], z: => C)(f: (A, => C) => C)(g: (B, => C) => C): C
+
+  /** Accumulate to `C` starting at the "right".  `f` and `g` may be
+    * interleaved.
+    */
+  def bifoldRight[A,B,C](fa: F[A, B], z: C)(f: (A, C) => C)(g: (B, C) => C): C =
+    bifoldRightSuspend(fa, Trampoline.done(z))((a, c) => c.map(f(a, _)))((b, c) => c.map(g(b, _))).run
 
   // derived functions
+
+  /** Accumulate to `C` starting at the "right".  `f` and `g` may be
+    * interleaved.
+    */
+  final def bifoldRightSuspend[A,B,C](fa: F[A, B], z: => C)(f: (A, C) => C)(g: (B, C) => C)(implicit C: Suspendable[C]): C =
+    C.suspend(bifoldRightByName(fa, z)((a, c) => f(a, C.suspend(c)))((b, c) => g(b, C.suspend(c))))
 
   /** `bifoldRight`, but defined to run in the opposite direction. */
   def bifoldLeft[A,B,C](fa: F[A, B], z: C)(f: (C, A) => C)(g: (C, B) => C): C = {
@@ -45,8 +57,16 @@ trait Bifoldable[F[_, _]]  { self =>
   }
 
   /**Curried version of `bifoldRight` */
-  final def bifoldR[A, B, C](fa: F[A, B], z: => C)(f: A => (=> C) => C)(g: B => (=> C) => C): C =
+  final def bifoldR[A, B, C](fa: F[A, B], z:C)(f: A => C => C)(g: B => C => C): C =
     bifoldRight(fa, z)(Function.uncurried(f))(Function.uncurried(g))
+
+  /**Curried version of `bifoldRightByName` */
+  final def bifoldRByName[A, B, C](fa: F[A, B], z: => C)(f: A => (=> C) => C)(g: B => (=> C) => C): C =
+    bifoldRightByName(fa, z)(Function.uncurried(f))(Function.uncurried(g))
+
+  /**Curried version of `bifoldRightSuspend` */
+  final def bifoldRSuspend[A, B, C](fa: F[A, B], z: => C)(f: A => C => C)(g: B => C => C)(implicit C: Suspendable[C]): C =
+    bifoldRightSuspend(fa, z)(Function.uncurried(f))(Function.uncurried(g))
 
   /**Curried version of `bifoldLeft` */
   final def bifoldL[A, B, C](fa: F[A, B], z: C)(f: C => A => C)(g: C => B => C): C =

@@ -29,8 +29,14 @@ final case class Coproduct[F[_], G[_], A](run: F[A] \/ G[A]) {
   def fold[H[_]](f: F ~> H, g: G ~> H): H[A] =
     run.fold(f.apply, g.apply)
 
-  def foldRight[Z](z: => Z)(f: (A, => Z) => Z)(implicit F: Foldable[F], G: Foldable[G]): Z =
+  def foldRightByName[Z](z: => Z)(f: (A, => Z) => Z)(implicit F: Foldable[F], G: Foldable[G]): Z =
+    run.fold(a => F.foldRightByName(a, z)(f), a => G.foldRightByName(a, z)(f))
+
+  def foldRight[Z](z: Z)(f: (A, Z) => Z)(implicit F: Foldable[F], G: Foldable[G]): Z =
     run.fold(a => F.foldRight(a, z)(f), a => G.foldRight(a, z)(f))
+
+  def foldRightSuspend[Z: Suspendable](z: => Z)(f: (A, Z) => Z)(implicit F: Foldable[F], G: Foldable[G]): Z =
+    run.fold(a => F.foldRightSuspend(a, z)(f), a => G.foldRightSuspend(a, z)(f))
 
   def foldMap[B](f: A => B)(implicit F: Foldable[F], G: Foldable[G], M: Monoid[B]): B =
     run.fold(F.foldMap(_)(f), G.foldMap(_)(f))

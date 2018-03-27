@@ -61,6 +61,8 @@ private[std] trait IterableSubtypeFoldable[I[X] <: Iterable[X]] extends Foldable
 
   override def foldRight[A, B](fa: I[A], b: => B)(f: (A, => B) => B) = fa.foldRight(b)(f(_, _))
 
+  override def foldRightStrict[A, B](fa: I[A], b: B)(f: (A, B) => B): B = fa.foldRight(b)(f)
+
   override def foldLeft[A, B](fa: I[A], b: B)(f: (B, A) => B): B = fa.foldLeft(b)(f)
 
   override def length[A](a: I[A]) = {

@@ -423,6 +423,8 @@ trait IsomorphismFoldable[F[_], G[_]] extends Foldable[F] {
   override def foldLeft[A, B](fa: F[A], z: B)(f: (B, A) => B) = G.foldLeft(naturalTrans(fa), z)(f)
 
   override def foldRight[A, B](fa: F[A], z: => B)(f: (A, => B) => B): B = G.foldRight[A, B](naturalTrans(fa), z)(f)
+
+  override def foldRightStrict[A, B](fa: F[A], z: B)(f: (A, B) => B): B = G.foldRightStrict[A, B](naturalTrans(fa), z)(f)
 }
 
 trait IsomorphismTraverse[F[_], G[_]] extends Traverse[F] with IsomorphismFoldable[F, G] with IsomorphismFunctor[F, G] {

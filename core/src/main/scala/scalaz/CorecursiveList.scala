@@ -178,7 +178,7 @@ object CorecursiveList extends CorecursiveListInstances {
           if (b) Empty() else just((true, a))
         }
 
-      override def foldRight[A, B](fa: CorecursiveList[A], z: => B)(f: (A, => B) => B) = {
+      override def foldRightByName[A, B](fa: CorecursiveList[A], z: => B)(f: (A, => B) => B) = {
         def rec(s: fa.S): B =
           fa.step(s) cata ({case (s, a) => f(a, rec(s))}, z)
         rec(fa.init)

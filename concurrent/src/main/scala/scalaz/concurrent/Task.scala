@@ -236,6 +236,8 @@ class Task[A](val get: Future[Throwable \/ A]) {
 
 object Task {
 
+  implicit def suspendable[A]: Suspendable[Task[A]] = Task.suspend(_)
+
   implicit val taskInstance: Nondeterminism[Task] with BindRec[Task] with Catchable[Task] with MonadError[Task,Throwable] =
     new Nondeterminism[Task] with BindRec[Task] with Catchable[Task] with MonadError[Task, Throwable] {
       val F = Nondeterminism[Future]

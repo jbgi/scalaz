@@ -6,7 +6,9 @@ final class BifoldableOps[F[_, _],A, B] private[syntax](val self: F[A, B])(impli
   ////
 
   def bifoldMap[M: Monoid](f: A => M)(g: B => M): M = F.bifoldMap(self)(f)(g)
-  def bifoldRight[C](z: => C)(f: (A, => C) => C)(g: (B, => C) => C): C = F.bifoldRight(self, z)(f)(g)
+  def bifoldRightByName[C](z: => C)(f: (A, => C) => C)(g: (B, => C) => C): C = F.bifoldRightByName(self, z)(f)(g)
+  def bifoldRight[C](z: C)(f: (A, => C) => C)(g: (B, C) => C): C = F.bifoldRight(self, z)(f)(g)
+  def bifoldRightSuspend[C: Suspendable](z: => C)(f: (A, C) => C)(g: (B, C) => C): C = F.bifoldRightSuspend(self, z)(f)(g)
   def bifoldLeft[C](z: C)(f: (C, A) => C)(g: (C, B) => C): C = F.bifoldLeft(self, z)(f)(g)
   def bifoldMap1[M: Semigroup](f: A => M)(g: B => M): Option[M] = F.bifoldMap1(self)(f)(g)
   def bifoldR[C](z: => C)(f: A => (=> C) => C)(g: B => (=> C) => C): C = F.bifoldR(self, z)(f)(g)
