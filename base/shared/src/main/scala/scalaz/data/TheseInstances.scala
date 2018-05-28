@@ -2,7 +2,7 @@ package scalaz
 package data
 
 import scalaz.algebra.SemigroupClass
-import scalaz.core.EqClass
+import scalaz.core.EqAnyRef
 import scalaz.ct._
 import scalaz.debug.DebugClass
 
@@ -46,10 +46,10 @@ trait TheseInstances {
     )
 
   implicit final def theseEq[L, R](implicit L: Eq[L], R: Eq[R]): Eq[These[L, R]] =
-    instanceOf[EqClass[These[L, R]]] {
+    instanceOf({
       case (This(l1), This(l2))         => L.equal(l1, l2)
       case (That(r1), That(r2))         => R.equal(r1, r2)
       case (Both(l1, r1), Both(l2, r2)) => L.equal(l1, l2) && R.equal(r1, r2)
       case _                            => false
-    }
+    }: EqAnyRef[These[L, R]])
 }

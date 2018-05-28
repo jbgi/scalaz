@@ -1,7 +1,7 @@
 package scalaz
 package data
 
-import scalaz.core.EqClass
+import scalaz.core.EqAnyVal
 import scalaz.ct.MonadClass
 
 trait IdentityInstances {
@@ -14,11 +14,8 @@ trait IdentityInstances {
   })
 
   implicit final def identityEq[A](implicit A: Eq[A]): Eq[Identity[A]] =
-    instanceOf[EqClass[Identity[A]]](
-      (x, y) =>
-        (x, y) match {
-          case (Identity(a1), Identity(a2)) => A.equal(a1, a2)
-          case _                            => false
-      }
-    )
+    instanceOf({
+      case (Identity(a1), Identity(a2)) => A.equal(a1, a2)
+      case _                            => false
+    }: EqAnyVal[Identity[A]])
 }

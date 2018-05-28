@@ -4,7 +4,7 @@ package data
 import scala.{ List, Nil }
 
 import scalaz.algebra._
-import scalaz.core.EqClass
+import scalaz.core.{ EqAnyRef, EqClass }
 import scalaz.ct._
 import scalaz.debug.DebugClass
 
@@ -52,9 +52,9 @@ trait ConstInstances {
     final override def empty: Const[A, B] = Const(A.empty)
   }
 
-  private trait ConstEq[A, B] extends EqClass[Const[A, B]] {
+  private trait ConstEq[A, B] extends EqAnyRef[Const[A, B]] {
     def A: EqClass[A]
-    final override def equal(x: Const[A, B], y: Const[A, B]): Boolean =
+    final override def valueEqual(x: Const[A, B], y: Const[A, B]): Boolean =
       A.equal(x.getConst, y.getConst)
   }
 

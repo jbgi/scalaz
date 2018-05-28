@@ -1,7 +1,7 @@
 package scalaz
 package data
 
-import scalaz.core.EqClass
+import scalaz.core.EqAnyRef
 import scalaz.ct._
 import scalaz.debug.DebugClass
 
@@ -37,9 +37,9 @@ trait DisjunctionInstances {
     })
 
   implicit def disjunctionEq[A, B](implicit A: Eq[A], B: Eq[B]): Eq[A \/ B] =
-    instanceOf[EqClass[A \/ B]] {
+    instanceOf({
       case (-\/(a1), -\/(a2)) => A.equal(a1, a2)
       case (\/-(b1), \/-(b2)) => B.equal(b1, b2)
       case _                  => false
-    }
+    }: EqAnyRef[A \/ B])
 }

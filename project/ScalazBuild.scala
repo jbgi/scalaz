@@ -1,6 +1,7 @@
 import sbt._
 import Keys._
 import org.scalajs.sbtplugin.cross.CrossProject
+import org.scalafmt.sbt.ScalafmtPlugin.autoImport.scalafmtOnCompile
 
 object Scalaz {
   val testDeps        = Seq("org.scalacheck"  %% "scalacheck"   % "1.14.0" % "test")
